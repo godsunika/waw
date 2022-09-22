@@ -2,14 +2,24 @@
   "name": "wa-chat-api",
   "version": "1.0.0",
   "description": "wa chat api",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
+    "start": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "hf",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.27.2",
+    "body-parser": "^1.20.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.2",
+    "express": "^4.18.1",
+    "express-validator": "^6.14.2",
+    "http": "^0.0.1-security",
+    "qrcode": "^1.5.1",
     "qrcode-terminal": "^0.12.0",
+    "socket.io": "^4.5.2",
     "whatsapp-web.js": "^1.17.1"
   }
 }
