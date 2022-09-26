@@ -1,8 +1,11 @@
-const http     = require('http');
-const qrcode   = require('qrcode');
-const express  = require('express');
-const socketIO = require('socket.io');  // send qr to html
+const http                       = require('http');
+const axios                      = require('axios');
+const qrcode                     = require('qrcode');
+const express                    = require('express');
+const socketIO                   = require('socket.io');            // send qr to html
 const { body, validationResult } = require('express-validator');
+const fileUpload                 = require('express-fileupload');
+const { phoneNumberFormatter }   = require('./helpers/formatter');
 
 const { Client, Location, List, Buttons, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 // const client = new Client({
@@ -28,6 +31,7 @@ const io     = socketIO(server);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(fileUpload({ debug: true }));
 
 app.get('/', (req, res) => {
     res.sendFile('index.html', { root: __dirname });
@@ -259,10 +263,16 @@ io.on('connection', function(socket) {
     
 })
 
+const checkRegisteredNumber = async (number) => {
+    const isRegisted = await client.isRegisteredUser(number);
+
+    return isRegisted;
+}
+
 app.post('/send-message', [
     body('number').notEmpty(),
     body('message').notEmpty(),
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req).formatWith( ({msg}) => {
         return msg;
     });
@@ -273,8 +283,17 @@ app.post('/send-message', [
             message: errors.mapped()
         })
     }
-    const number  = req.body.number;
+    const number  = phoneNumberFormatter(req.body.number);
     const message = req.body.message;
+
+    const isRegisteredNumber = await checkRegisteredNumber(number);
+
+    if(!isRegisteredNumber) {
+        return res.status(422).json({
+            status : false,
+            message: 'Number is not registered on WhatsApp'
+        })
+    }
 
     client.sendMessage(number, message)
     .then(response => {
@@ -291,6 +310,64 @@ app.post('/send-message', [
     });
 })
 
+
+app.post('/send-media', [
+    body('number').notEmpty(),
+    body('message').notEmpty(),
+], async (req, res) => {
+    const errors = validationResult(req).formatWith( ({msg}) => {
+        return msg;
+    });
+
+    if(!errors.isEmpty()) {
+        return res.status(422).json({
+            status : false,
+            message: errors.mapped()
+        })
+    }
+    
+    const isRegisteredNumber = await checkRegisteredNumber(number);
+
+    if(!isRegisteredNumber) {
+        return res.status(422).json({
+            status : false,
+            message: 'Number is not registered on WhatsApp'
+        })
+    }
+
+    const number  = phoneNumberFormatter(req.body.number);
+    const message = req.body.message;
+    
+    // // via url
+    // const fileUrl = req.body.file;
+    // let mimetypeUrl;
+    // const attachmentUrl = await axios.get(fileUrl, { responseType: 'arraybuffer'}).then( response => {
+    //     mimetypeUrl = response.headers('content-type')
+    //     return response.data.toString('base64');
+    // });
+    // const media = new MessageMedia(mimetypeUrl, attachmentUrl, 'Media')
+
+    // // via upload
+    // const mediaFile = req.files.media;
+    // const media     = new MessageMedia(mediaFile.mimetype, mediaFile.data.toString('base64'), mediaFile.name)
+
+    // // via local file
+    const media   = MessageMedia.fromFilePath('./1.jpg');
+
+    client.sendMessage(number, media, { caption:  message })
+    .then(response => {
+        res.status(200).json({
+            status  : true,
+            response: response
+        })
+    })
+    .catch(err => {
+        res.status(500).json({
+            status  : false,
+            response: err
+        })
+    });
+})
 server.listen(8000, function() {
     console.log('Application Running on 8000');
 })
