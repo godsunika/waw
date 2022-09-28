@@ -22,12 +22,18 @@ const { Client, Location, List, Buttons, LocalAuth, MessageMedia } = require('wh
 //             '--disable-gpu'
 //         ]
 //     },
-//     authStrategy: new LocalAuth(),
+    // authStrategy: new LocalAuth(),
 // });
 
 const app    = express();
 const server = http.createServer(app);
 const io     = socketIO(server);
+const apiEnd = axios.create({
+    baseURL: "http://localhost:8080",
+    headers: {
+        "Content-type": "application/json"
+    }
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -47,7 +53,7 @@ const client = new Client({
         headless: false,
         // executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
     },
-    // authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth(),
 });
 
 client.on('loading_screen', (percent, message) => {
@@ -58,10 +64,6 @@ client.on('auth_failure', msg => {
     // Fired if session restore was unsuccessful
     console.error('AUTHENTICATION FAILURE', msg);
 });
-
-client.on('disconnected', () => {
-    console.log('Disconnected');
-})
 
 client.on('message', async msg => {
     console.log('MESSAGE RECEIVED', msg);
@@ -232,6 +234,13 @@ client.on('message', async msg => {
     } else if (msg.body === '!sendMedia') {
         const media = MessageMedia.fromFilePath('./1.jpg');
         client.sendMessage(msg.from, media, {caption: 'this is my caption'});
+    } else if (msg.body === '!queue') {
+        const { data } = await apiEnd.get("/api/reservation");
+        console.log("=====================================");
+        console.log(data);
+        console.log(typeof(data));
+        console.log(JSON.stringify(data));
+        client.sendMessage(msg.from, JSON.stringify(data))
     }
 });
 
@@ -250,15 +259,21 @@ io.on('connection', function(socket) {
     });
 
     client.on('ready', () => {
-        console.log('Client is ready!');
+        console.log('Client is ready! x');
         socket.emit('ready', 'Whatsapp is ready!');
         socket.emit('message', 'Whatsapp is ready!');
     });
 
     client.on('authenticated', () => {
-        console.log('AUTHENTICATED');
+        console.log('AUTHENTICATED x');
         socket.emit('authenticated', 'Whatsapp is authenticated!');
         socket.emit('message', 'Whatsapp is authenticated!');
+    });
+    
+    client.on('disconnected', () => {
+        console.log('Disconnected');
+        socket.emit('disconnected', 'Whatsapp is disconnected!');
+        socket.emit('message', 'Whatsapp is disconnected!');
     });
     
 })
@@ -325,7 +340,7 @@ app.post('/send-media', [
             message: errors.mapped()
         })
     }
-    
+
     const isRegisteredNumber = await checkRegisteredNumber(number);
 
     if(!isRegisteredNumber) {

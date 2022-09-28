@@ -26,6 +26,7 @@
       });
 
       socket.on('qr', (msg) => {
+        $('#qrcode').show();
         $('#qrcode').attr('src', msg);
       });
 
