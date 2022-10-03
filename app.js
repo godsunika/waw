@@ -6,6 +6,7 @@ const socketIO                   = require('socket.io');            // send qr t
 const { body, validationResult } = require('express-validator');
 const fileUpload                 = require('express-fileupload');
 const { phoneNumberFormatter }   = require('./helpers/formatter');
+require('dotenv').config();
 
 const { Client, Location, List, Buttons, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 // const client = new Client({
@@ -29,7 +30,7 @@ const app    = express();
 const server = http.createServer(app);
 const io     = socketIO(server);
 const apiEnd = axios.create({
-    baseURL: "http://localhost:8080",
+    baseURL: process.env.ALLOW_CORS_ADDRESS,
     headers: {
         "Content-type": "application/json"
     }
@@ -48,12 +49,26 @@ app.get('/', (req, res) => {
     // })
 });
 
-const client = new Client({
+const client = process.env.SERVER_TYPE == 'linux' ? new Client({
     puppeteer: {
-        headless: false,
-        // executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        headless: true,
+        args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process', // <- this one doesn't works in Windows
+        '--disable-gpu'
+        ],
     },
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth()
+}) : new Client({
+    puppeteer: {
+        headless: true,
+    },
+    authStrategy: new LocalAuth()
 });
 
 client.on('loading_screen', (percent, message) => {
